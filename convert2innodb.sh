@@ -29,7 +29,7 @@ usage() { echo "Usage: $0 [-b to keep old databases]" 1>&2; exit 1; }
 ######## MAIN #########
 
 # Blocking ctrl + c
-trap control_c SIGINT
+#trap control_c SIGINT
 
 USER='root'
 PASSW=''
@@ -43,12 +43,6 @@ while getopts ":bu:p:" o; do
         b)
             KEEP_OLD_DB="--no-drop-old-table"
             ;;
-        u) 
-            USER=${OPTARG}
-            ;;
-        p)
-            PASSW=${OPTARG}
-            ;;
         *)
             usage
             ;;
@@ -56,11 +50,10 @@ while getopts ":bu:p:" o; do
 done
 shift $((OPTIND-1))
 
-echo "hi"
 
 TMP_FILE=`mktemp  /tmp/.databases.XXXXX`  || { echo "There is a problem creating tmp file"; exit 1; }
 
-mysql -B -N -u${USER} -p${PASSW} -e "show databases" |egrep -iv 'Database|mysql|information_schema|performance_schema' > ${TMP_FILE}
+mysql -B -N -e "show databases" |egrep -iv 'Database|mysql|information_schema|performance_schema' > ${TMP_FILE}
 
 echo ""
 echo "===== DATABASES TO CONVERT ======"
@@ -74,9 +67,9 @@ NPK=''
 
 for DB in `cat ${TMP_FILE}`; do
 
-  for TABLE in `echo "show tables" | mysql -u${USER} -p${PASSW} -B --skip-column-names $DB`; do
+  for TABLE in `echo "show tables" | mysql -B --skip-column-names $DB`; do
       echo "Scanning ${DB}.${TABLE}"    
-      NPK=`echo "select constraint_name from information_schema.table_constraints where table_name = '${TABLE}' and table_schema = '${DB}' and constraint_name = 'PRIMARY';" | mysql -B -u${USER} -p${PASSW}`
+      NPK=`echo "select constraint_name from information_schema.table_constraints where table_name = '${TABLE}' and table_schema = '${DB}' and constraint_name = 'PRIMARY';" | mysql -B`
 
       if [[ -z ${NPK} ]]; then
         echo "Skipping: This ${DB}.${TABLE} has no PK or multiple PKs"
@@ -84,7 +77,7 @@ for DB in `cat ${TMP_FILE}`; do
 
       else
         echo "converting ${DB}.${TABLE}"
-        pt-online-schema-change --user=${USER} --password=${PASSW}  --execute ${KEEP_OLD_DB} --nocheck-replication-filters --chunk-time=0.5 --chunk-size-limit=0 --max-load=Threads_running=20 --no-check-plan --critical-load=Threads_running=100 --set-vars=innodb_lock_wait_timeout=10 --alter 'ENGINE=InnoDB' h=localhost,D=${DB},t=${TABLE}
+        pt-online-schema-change  --execute ${KEEP_OLD_DB} --nocheck-replication-filters --chunk-time=0.5 --chunk-size-limit=0 --max-load=Threads_running=20 --no-check-plan --critical-load=Threads_running=100 --set-vars=innodb_lock_wait_timeout=10 --alter 'ENGINE=InnoDB' h=localhost,D=${DB},t=${TABLE}
       fi
      
      # Notify we found an error and store error found
@@ -100,7 +93,8 @@ done
 # Report a list with Tables not converted because did not have PK
 if [[ ${#SKIPPED_TBL[@]} > 0  ]]; then
   echo "List of tables which has not been converted because did not have PK (${#SKIPPED_TBL[@]}):"
-  for i in "${SKIPPED_TBL[@]}"; do echo " ==>  $i"; done
+  echo "============================================================================"
+  for i in "${SKIPPED_TBL[@]}"; do echo "$i" |tee -a no_PK_dbs.txt; done
 else
   echo "Excelent! All tables had a PK !"
 fi
@@ -109,7 +103,8 @@ fi
 # Report a list with ERRORS found
 if [[ ${#ERRORS[@]} > 0  ]]; then
   echo "List of ERRORS found (${#ERRORS[@]}): "
-  for i in "${ERRORS[@]}"; do echo " ==> $i"; done
+  echo "==========================="
+  for i in "${ERRORS[@]}"; do echo "$i"|tee -a error_dbs.txt; done
 else
   echo "Excelent! Conversion process executed without issues !"
 fi
