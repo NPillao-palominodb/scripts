@@ -85,7 +85,7 @@ for DB in `cat ${TMP_FILE}`; do
         ERRORS+=("${DB}.${TABLE}")
         echo "ERROR: There was a problem converting ${DB}.${TABLE} Please review" |tee -a db_errors.txt
         echo "       Do you want to continue with InnoDB conversion? Y|N "
-        #approve
+        approve
       else
         echo "==============  ${DB}.${TABLE} converted  ===============" |tee -a tables_converted.txt
      fi
