@@ -8,7 +8,7 @@
 
 TMP_FILE=`mktemp  /tmp/.databases.XXXXX`  || { echo "There is a problem creating tmp file"; exit 1; }
 
-mysql -B -N -e "show databases" |egrep -iv 'Database|mysql|information_schema|performance_schema' > ${TMP_FILE}
+mysql -B -N -e "show databases" |egrep -iv 'mysql|information_schema|performance_schema' > ${TMP_FILE}
 
 for DB in `cat ${TMP_FILE}`; do
 
