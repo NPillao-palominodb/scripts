@@ -64,6 +64,7 @@ echo ""
 echo "You are going to alter these databases, do you agree? 'Y|N'"
 approve
 NPK=''
+FULLTEXT=''
 
 for DB in `cat ${TMP_FILE}`; do
 
@@ -76,6 +77,24 @@ for DB in `cat ${TMP_FILE}`; do
         SKIPPED_TBL+=("${DB}.${TABLE}")
 
       else
+	# Produces the drop statement if any fulltext indexes exist on this table
+        FULLTEXT=`echo "select concat(,'drop index ',index_name,' on ',table_name,';') from information_schema.statistics where table_name = '${TABLE}' and table_schema = '${DB}' and index_type = 'FULLTEXT' ;" | mysql -B --skip-column-names`
+
+	if [[ -z ${FULLTEXT} ]]; then
+	  echo "Dropping any fulltext indexes"
+	  echo "SQL: ${FULLTEXT}"
+	  echo $FULLTEXT | mysql -v -v -v -B --skip-column-names $DB # Want this drop to be verbose and specific DB
+	  if [ $? -ne 0 ]; then
+        	ERRORS+=("${DB}.${TABLE}")
+        	echo "ERROR: There was a problem dropping the full text index on ${DB}.${TABLE} Please review" |tee -a db_errors.txt
+        	echo "       Do you want to continue with InnoDB conversion? Y|N "
+        	approve
+      	  else
+        	echo "==============  ${DB}.${TABLE} Dropped  ==============="
+     	  fi
+  
+	fi
+
         echo "converting ${DB}.${TABLE}"
         pt-online-schema-change  --execute ${KEEP_OLD_DB} --nocheck-replication-filters --chunk-time=0.5 --chunk-size-limit=0 --max-load=Threads_running=20 --no-check-plan --critical-load=Threads_running=100 --alter 'ENGINE=InnoDB' h=localhost,D=${DB},t=${TABLE}
       fi
