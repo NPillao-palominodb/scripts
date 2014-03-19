@@ -78,9 +78,10 @@ for DB in `cat ${TMP_FILE}`; do
 
       else
 	# Produces the drop statement if any fulltext indexes exist on this table
-        FULLTEXT=`echo "select concat(,'drop index ',index_name,' on ',table_name,';') from information_schema.statistics where table_name = '${TABLE}' and table_schema = '${DB}' and index_type = 'FULLTEXT' ;" | mysql -B --skip-column-names`
+	echo " =============== Scanning ${DB}.${TABLE} for full text indexes ==============="
+        FULLTEXT=`echo "select concat('drop index ',index_name,' on ',table_name,';') from information_schema.statistics where table_name = '${TABLE}' and table_schema = '${DB}' and index_type = 'FULLTEXT' ;" | mysql -B --skip-column-names`
 
-	if [[ -z ${FULLTEXT} ]]; then
+	if [[ -n ${FULLTEXT} ]]; then
 	  echo "Dropping any fulltext indexes"
 	  echo "SQL: ${FULLTEXT}"
 	  echo $FULLTEXT | mysql -v -v -v -B --skip-column-names $DB # Want this drop to be verbose and specific DB
@@ -90,7 +91,7 @@ for DB in `cat ${TMP_FILE}`; do
         	echo "       Do you want to continue with InnoDB conversion? Y|N "
         	approve
       	  else
-        	echo "==============  ${DB}.${TABLE} Dropped  ==============="
+        	echo "==============  ${DB}.${TABLE} fulltext index dropped  ==============="
      	  fi
   
 	fi
