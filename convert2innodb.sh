@@ -98,17 +98,18 @@ for DB in `cat ${TMP_FILE}`; do
 
         echo "converting ${DB}.${TABLE}"
         pt-online-schema-change  --execute ${KEEP_OLD_DB} --nocheck-replication-filters --chunk-time=0.5 --chunk-size-limit=0 --max-load=Threads_running=20 --no-check-plan --critical-load=Threads_running=100 --alter 'ENGINE=InnoDB' h=localhost,D=${DB},t=${TABLE}
+  
+        # Notify we found an error and store error found
+        if [ $? -ne 0 ]; then
+          ERRORS+=("${DB}.${TABLE}")
+          echo "ERROR: There was a problem converting ${DB}.${TABLE} Please review" |tee -a db_errors.txt
+          echo "       Do you want to continue with InnoDB conversion? Y|N "
+          approve
+        else
+          echo "==============  ${DB}.${TABLE} converted  ===============" |tee -a tables_converted.txt
+        fi
       fi
      
-     # Notify we found an error and store error found
-     if [ $? -ne 0 ]; then
-        ERRORS+=("${DB}.${TABLE}")
-        echo "ERROR: There was a problem converting ${DB}.${TABLE} Please review" |tee -a db_errors.txt
-        echo "       Do you want to continue with InnoDB conversion? Y|N "
-        approve
-      else
-        echo "==============  ${DB}.${TABLE} converted  ===============" |tee -a tables_converted.txt
-     fi
   done
 done
 
