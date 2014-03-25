@@ -53,7 +53,7 @@ shift $((OPTIND-1))
 
 TMP_FILE=`mktemp  /tmp/.databases.XXXXX`  || { echo "There is a problem creating tmp file"; exit 1; }
 
-mysql -B -N -e "show databases" |egrep -iv 'mysql|information_schema|performance_schema' > ${TMP_FILE}
+mysql -N -B -e "SELECT table_schema, table_name FROM INFORMATION_SCHEMA.TABLES   WHERE engine = 'MyISAM' AND table_schema not in ('mysql', 'information_schema');" |awk '{print $1"."$2}' > ${TMP_FILE}
 
 echo ""
 echo "===== DATABASES TO CONVERT ======"
@@ -66,19 +66,21 @@ approve
 NPK=''
 FULLTEXT=''
 
-for DB in `cat ${TMP_FILE}`; do
+for LINE in `cat ${TMP_FILE}`; do
 
-  for TABLE in `echo "show tables" | mysql -B --skip-column-names $DB`; do
-      echo " =============== Scanning ${DB}.${TABLE} ==============="    
+      DB=` echo ${LINE} | awk -F '.' '{print $1}'`
+      TABLE=` echo ${LINE} | awk -F '.' '{print $2}'`
+
+      echo " =============== Scanning ${TABLE} ==============="    
       NPK=`echo "select constraint_name from information_schema.table_constraints where table_name = '${TABLE}' and table_schema = '${DB}' and ( constraint_TYPE='PRIMARY KEY' or constraint_TYPE='UNIQUE') limit 1;" | mysql -B`
 
       if [[ -z ${NPK} ]]; then
-        echo " ================ Skipping: This ${DB}.${TABLE} has not PK ============" |tee -a db_skipped.txt
-        SKIPPED_TBL+=("${DB}.${TABLE}")
+        echo " ================ Skipping: This ${LINE} has not PK ============" |tee -a db_skipped.txt
+        SKIPPED_TBL+=("${LINE}")
 
       else
 	# Produces the drop statement if any fulltext indexes exist on this table
-	echo " =============== Scanning ${DB}.${TABLE} for full text indexes ==============="
+	echo " =============== Scanning ${LINE} for full text indexes ==============="
         FULLTEXT=`echo "select concat('drop index ',index_name,' on ',table_name,';') from information_schema.statistics where table_name = '${TABLE}' and table_schema = '${DB}' and index_type = 'FULLTEXT' ;" | mysql -B --skip-column-names`
 
 	if [[ -n ${FULLTEXT} ]]; then
@@ -86,31 +88,30 @@ for DB in `cat ${TMP_FILE}`; do
 	  echo "SQL: ${FULLTEXT}"
 	  echo $FULLTEXT | mysql -v -v -v -B --skip-column-names $DB # Want this drop to be verbose and specific DB
 	  if [ $? -ne 0 ]; then
-        	ERRORS+=("${DB}.${TABLE}")
-        	echo "ERROR: There was a problem dropping the full text index on ${DB}.${TABLE} Please review" |tee -a db_errors.txt
+        	ERRORS+=("${LINE}")
+        	echo "ERROR: There was a problem dropping the full text index on ${LINE} Please review" |tee -a db_errors.txt
         	echo "       Do you want to continue with InnoDB conversion? Y|N "
         	approve
       	  else
-        	echo "==============  ${DB}.${TABLE} fulltext index dropped  ==============="
+        	echo "==============  ${LINE} fulltext index dropped  ==============="
      	  fi
   
 	fi
 
-        echo "converting ${DB}.${TABLE}"
+        echo "converting ${LINE}"
         pt-online-schema-change  --execute ${KEEP_OLD_DB} --nocheck-replication-filters --chunk-time=0.5 --chunk-size-limit=0 --max-load=Threads_running=20 --no-check-plan --critical-load=Threads_running=100 --alter 'ENGINE=InnoDB' h=localhost,D=${DB},t=${TABLE}
   
         # Notify we found an error and store error found
         if [ $? -ne 0 ]; then
-          ERRORS+=("${DB}.${TABLE}")
-          echo "ERROR: There was a problem converting ${DB}.${TABLE} Please review" |tee -a db_errors.txt
+          ERRORS+=("${LINE}")
+          echo "ERROR: There was a problem converting ${LINE} Please review" |tee -a db_errors.txt
           echo "       Do you want to continue with InnoDB conversion? Y|N "
           approve
         else
-          echo "==============  ${DB}.${TABLE} converted  ===============" |tee -a tables_converted.txt
+          echo "==============  ${LINE} converted  ===============" |tee -a tables_converted.txt
         fi
       fi
      
-  done
 done
 
 # Report a list with Tables not converted because did not have PK

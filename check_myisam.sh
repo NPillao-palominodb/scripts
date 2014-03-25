@@ -6,16 +6,7 @@
 ################################################
 
 
-TMP_FILE=`mktemp  /tmp/.databases.XXXXX`  || { echo "There is a problem creating tmp file"; exit 1; }
+mysql -e "SELECT table_schema, table_name, engine FROM INFORMATION_SCHEMA.TABLES   WHERE engine = 'MyISAM' AND table_schema not in ('mysql', 'information_schema');"
 
-mysql -B -N -e "show databases" |egrep -iv 'mysql|information_schema|performance_schema' > ${TMP_FILE}
 
-for DB in `cat ${TMP_FILE}`; do
 
-  echo "show table status" | mysql --batch --skip-column-names $DB |while read line; do
-      echo $DB: $line |grep -i myisam |awk '{print $1 $2}'
-   done
-
-done
-
-rm -f ${TMP_FILE}
