@@ -10,7 +10,6 @@ def parse_cfg_file(data_file):
   
   dic_vars = {}
   host_list = []
-  array = [ 'user', 'password' ]
 
   for line in data_file.readlines():
     line = line.strip()
