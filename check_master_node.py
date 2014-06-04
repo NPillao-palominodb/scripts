@@ -96,12 +96,13 @@ def main():
   args = parser.parse_args()
 
   try:
-    in_file = open(args.cfg, 'r')
+    with open(args.cfg, 'r') as in_file:
+      L = parse_cfg_file(in_file)
+
   except IOError:
     print "Error: Cannot find file or read data. You maybe specified a wrong path or this file is being re-generated"
     sys.exit(2)
 
-  L = parse_cfg_file(in_file)
 
   if len(L['hostnames']) == 0:
     print "WARNING: No databases found"
