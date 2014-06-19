@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # Author: Narcis pillao <npillao@blackbirdit.com>
-# Description: This script will check split brain process
+# Description: This script will check split brain process. Script is adapted to load only MHA configurations
 
 import sys
 import argparse
@@ -38,8 +38,6 @@ def read_only(host, user, password='', port=3306, socket='' ):
   except Exception, err:
     print "UNKNOWN: - Unable to connect to: "+ host, sys.exc_info()[0]
     sys.exit(3)
-    print result
-    sys.exit()
   if result == 'OFF':
     return False
   else:
@@ -111,8 +109,8 @@ def main():
   cluster, env = get_cluster_info(L['hostnames'][0])
   print "Checking cluster "+ cluster + " environment: " + env
 
-  return check_status(L)
-      
+  output_code = check_status(L)
+  sys.exit(output_code) 
   
 if __name__ == "__main__":
   main()
