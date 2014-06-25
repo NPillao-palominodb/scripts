@@ -1,0 +1,63 @@
+#!/bin/bash
+# Description: This check will use Amazon suit (ams) to get information about when was the last snapshot executed
+# Author: npillao@blackbirdit.com
+# Dependencies: ams tool: https://github.com/dwayn/aws-management-suite
+
+# Declare default values
+NEWER=0
+EXIT=0
+BIN=/home/ubuntu/bin/ams
+TIME=1
+
+## Get prompt variables
+usage() { echo "Usage: $0 [-H dbbackup host] [-t hours last snapshot]" 1>&2; exit 1; }
+
+####### MAIN ########
+
+while getopts ":H:t:" o; do
+    case "${o}" in
+        H)
+            HOST=${OPTARG}
+            ;;
+        t)
+            TIME=${OPTARG}
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [ ! -f ${BIN} ]; then
+ echo "WARNING: ams binary is not on default directory; exit 1"
+fi
+
+## SCRIPT
+
+TEMPFILE=`tempfile`
+`${BIN} snapshot list host --like ${HOST} |cut -d'|' -f14 |egrep '^ 2' > ${TEMPFILE}`
+
+while read line; do
+      CREATED=`date -d "${line}" +"%y%m%d%H%M%S"`
+
+      if [ ${CREATED} -gt ${NEWER} ]; then
+        NEWER="${CREATED}"
+        DATE=${line}
+      fi
+done < ${TEMPFILE}
+
+
+NOW=`date -d "${TIME} hour ago" +"%y%m%d%H%M%S"`
+
+if [ ${NEWER} -ge ${NOW} ]; then
+  echo "OK: Snapshot is within the threshold (${TIME} hours ago) - Created: ${DATE}"
+  EXIT=0
+else
+  echo "CRITICAL: Last snapshot was created ${DATE}, more than ${TIME} hour ago"
+  EXIT=2
+fi
+
+rm -f ${TEMPFILE}
+exit ${EXIT}
+
