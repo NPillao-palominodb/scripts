@@ -12,7 +12,11 @@ use MHA::ManagerAdminWrapper;
 
 my $rc = 0;
 eval { $rc = MHA::ManagerAdminWrapper::check_status(@ARGV); };
+
+if ($rc!=0) {
+   $rc=2;
+}
 if ($@) {
-  $rc = 1;
+  $rc = 2;
 }
 exit $rc;
