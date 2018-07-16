@@ -25,7 +25,7 @@
 #
 # Requires the following modules:
 #        DBI
-#        Nagios::Plugin
+#        Monitoring::Plugin
 #
 # Copyright Notice: GPLv2
 #
@@ -39,11 +39,11 @@
 use warnings;
 use strict;
 use DBI;
-use Nagios::Plugin;
+use Monitoring::Plugin;
 
 
-## setup Nagios::Plugin
-my $np = Nagios::Plugin->new(
+## setup Monitoring::Plugin
+my $np = Monitoring::Plugin->new(
 	usage    => "Usage: %s [-v|--verbose] [-H <host>] [-P <port>] [-S <socket>] [-u <user>] [-p <password>] -w <warn time> -c <crit time>",
 	version  => "1.0",
 	license  => "Copyright (C) 2009  Vincent Rivellino <vrivellino\@paybycash.com>\n" .
