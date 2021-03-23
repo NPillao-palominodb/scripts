@@ -44,67 +44,71 @@ use Nagios::Plugin;
 
 ## setup Nagios::Plugin
 my $np = Nagios::Plugin->new(
-	usage    => "Usage: %s [-v|--verbose] [-H <host>] [-P <port>] [-S <socket>] [-u <user>] [-p <password>] -w <warn time> -c <crit time>",
-	version  => "1.0",
-	license  => "Copyright (C) 2009  Vincent Rivellino <vrivellino\@paybycash.com>\n" .
+        usage    => "Usage: %s [-v|--verbose] [-H <host>] [-P <port>] [-S <socket>] [-u <user>] [-p <password>] [-C <path/to/defaults>] -w <warn time> -c <crit time>",
+        version  => "1.1",
+        license  => "Copyright (C) 2009  Vincent Rivellino <vrivellino\@paybycash.com>\n" .
               "This plugin comes with ABSOLUTELY NO WARRANTY.  This is free software, and you\n" .
               "are welcome to redistribute it under the conditions of version 2 of the GPL."
 );
 
 ## add command line arguments
 $np->add_arg(
-	spec => 'host|H=s',
-	help => "-H, --host\n   MySQL server host"
+        spec => 'host|H=s',
+        help => "-H, --host\n   MySQL server host"
 );
 $np->add_arg(
-	spec => 'port|P=i',
-	help => "-P, --port\n   MySQL server port"
+        spec => 'port|P=i',
+        help => "-P, --port\n   MySQL server port"
 );
 $np->add_arg(
-	spec => 'socket|S=s',
-	help => "-S, --socket\n   MySQL server socket"
+        spec => 'socket|S=s',
+        help => "-S, --socket\n   MySQL server socket"
 );
 $np->add_arg(
-	spec => 'user|u=s',
-	help => "-u, --user\n   database user (must have privilege to SHOW PROCESSLIST)"
+        spec => 'user|u=s',
+        help => "-u, --user\n   database user (must have privilege to SHOW PROCESSLIST)"
 );
 $np->add_arg(
-	spec => 'password|p=s',
-	help => "-p, --password\n   database password"
+        spec => 'password|p=s',
+        help => "-p, --password\n   database password"
 );
 $np->add_arg(
-	spec => 'warn|w=i',
-	help => "-w, --warn\n   Query time in seconds to generate a WARNING",
-	required => 1
+        spec => 'warn|w=i',
+        help => "-w, --warn\n   Query time in seconds to generate a WARNING",
+        required => 1
 );
 $np->add_arg(
-	spec => 'crit|c=i',
-	help => "-c, --crit\n   Query time in seconds to generate a CRITICAL",
-	required => 1
+        spec => 'crit|c=i',
+        help => "-c, --crit\n   Query time in seconds to generate a CRITICAL",
+        required => 1
 );
 $np->add_arg(
-	spec => 'db=s',
-	help => "--db\n   Only check queries running on this database\n   To specify more than one, separate with commas."
+        spec => 'db=s',
+        help => "--db\n   Only check queries running on this database\n   To specify more than one, separate with commas."
 );
 $np->add_arg(
-	spec => 'skip_db=s',
-	help => "--skip_db\n   Don't check queries running on this database\n   To specify more than one, separate with commas."
+        spec => 'skip_db=s',
+        help => "--skip_db\n   Don't check queries running on this database\n   To specify more than one, separate with commas."
 );
 $np->add_arg(
-	spec => 'clientuser=s',
-	help => "--clientuser\n   Only check queries running by this MySQL user\n   To specify more than one, separate with commas."
+        spec => 'clientuser=s',
+        help => "--clientuser\n   Only check queries running by this MySQL user\n   To specify more than one, separate with commas."
 );
 $np->add_arg(
-	spec => 'skip_clientuser=s',
-	help => "--skip_clientuser\n   Don't check queries running by this MySQL user\n   To specify more than one, separate with commas."
+        spec => 'skip_clientuser=s',
+        help => "--skip_clientuser\n   Don't check queries running by this MySQL user\n   To specify more than one, separate with commas."
 );
 $np->add_arg(
-	spec => 'clienthost=s',
-	help => "--clienthost\n   Only check queries running from this client host\n   To specify more than one, separate with commas."
+        spec => 'clienthost=s',
+        help => "--clienthost\n   Only check queries running from this client host\n   To specify more than one, separate with commas."
 );
 $np->add_arg(
-	spec => 'skip_clienthost=s',
-	help => "--skip_clienthost\n   Don't check queries running from this client host\n   To specify more than one, separate with commas."
+        spec => 'skip_clienthost=s',
+        help => "--skip_clienthost\n   Don't check queries running from this client host\n   To specify more than one, separate with commas."
+);
+$np->add_arg(
+        spec => 'default_config|C=s',
+        help => "--default_config\n   Use defaults from the file specified."
 );
 
 
@@ -113,21 +117,22 @@ $np->getopts;
 my $verbose = $np->opts->verbose || 0;
 
 if ( $verbose >= 2 ) {
-	print "Plugin options:\n";
-	printf "    %-23s %d\n", "verbose:", $verbose;
-	printf "    %-23s %s\n", "host:", $np->opts->host || '';
-	printf "    %-23s %s\n", "port:", $np->opts->port || '';
-	printf "    %-23s %s\n", "socket:", $np->opts->socket || '';
-	printf "    %-23s %s\n", "user:", $np->opts->user || '';
-	printf "    %-23s %s\n", "password:", $np->opts->password || '';
-	printf "    %-23s %d\n", "warn:", $np->opts->warn;
-	printf "    %-23s %d\n", "crit:", $np->opts->crit;
-	printf "    %-23s %s\n", "db:", $np->opts->db || '';
-	printf "    %-23s %s\n", "skip_db:", $np->opts->skip_db || '';
-	printf "    %-23s %s\n", "clientuser:", $np->opts->clientuser || '';
-	printf "    %-23s %s\n", "skip_clientuser:", $np->opts->skip_clientuser || '';
-	printf "    %-23s %s\n", "clienthost:", $np->opts->clienthost || '';
-	printf "    %-23s %s\n", "skip_clienthost:", $np->opts->skip_clienthost || '';
+        print "Plugin options:\n";
+        printf "    %-23s %d\n", "verbose:", $verbose;
+        printf "    %-23s %s\n", "host:", $np->opts->host || '';
+        printf "    %-23s %s\n", "port:", $np->opts->port || '';
+        printf "    %-23s %s\n", "socket:", $np->opts->socket || '';
+        printf "    %-23s %s\n", "user:", $np->opts->user || '';
+        printf "    %-23s %s\n", "password:", $np->opts->password || '';
+        printf "    %-23s %d\n", "warn:", $np->opts->warn;
+        printf "    %-23s %d\n", "crit:", $np->opts->crit;
+        printf "    %-23s %s\n", "db:", $np->opts->db || '';
+        printf "    %-23s %s\n", "skip_db:", $np->opts->skip_db || '';
+        printf "    %-23s %s\n", "clientuser:", $np->opts->clientuser || '';
+        printf "    %-23s %s\n", "skip_clientuser:", $np->opts->skip_clientuser || '';
+        printf "    %-23s %s\n", "clienthost:", $np->opts->clienthost || '';
+        printf "    %-23s %s\n", "skip_clienthost:", $np->opts->skip_clienthost || '';
+        printf "    %-23s %s\n", "default_config:", $np->opts->default_config || '';
 }
 
 # extract restrictions from args - will grep() these lists
@@ -145,26 +150,28 @@ my $dsn = 'DBI:mysql:';
 
 ## if we're connecting to localhost (by name) or the host isn't defined ...
 if ( ! $np->opts->host || $np->opts->host eq 'localhost' ) {
-	# connect via a local socket (if it's defined)
-	$dsn .= ';mysql_socket=' . $np->opts->socket
-		if $np->opts->socket;
+        # connect via a local socket (if it's defined)
+        $dsn .= ';mysql_socket=' . $np->opts->socket
+                if $np->opts->socket;
 
 ## otherwise, attempt to connect via host and/or port (if they're defined)
 } else {
-	$dsn .= ';host=' . $np->opts->host
-		if $np->opts->host;
-	$dsn .= ';port=' . $np->opts->port
-		if $np->opts->port;
+        $dsn .= ';host=' . $np->opts->host
+                if $np->opts->host;
+        $dsn .= ';port=' . $np->opts->port
+                if $np->opts->port;
+        $dsn .= ';mysql_read_default_file=' . $np->opts->default_config
+                if $np->opts->default_config;
 }
 
 ## print dsn if really verbose
 print "DSN: '$dsn'  USER: '", $np->opts->user || '', "' PASS: '", $np->opts->password || '', "'\n"
-	if $verbose >= 2;
+        if $verbose >= 2;
 
 ## connect to the database server
 my $dbh = DBI->connect( $dsn, $np->opts->user || '', $np->opts->password || '',
                         { RaiseError => 0, PrintError => 0, AutoCommit => 1 } )
-	or $np->nagios_exit( UNKNOWN, "Could not connect to database: $DBI::errstr" );
+        or $np->nagios_exit( UNKNOWN, "Could not connect to database: $DBI::errstr" );
 
 ## get the list of running queries
 my $sth = $dbh->prepare( 'SHOW FULL PROCESSLIST' );
@@ -183,41 +190,41 @@ my $longquery_time = 0;
 ## process the results
 my $count = 0;
 while ( $sth->fetch ) {
-	$count++;
+        $count++;
 
-	# skip if time is zero or NULL
-	next unless $row{'time'};
+        # skip if time is zero or NULL
+        next unless $row{'time'};
 
-	# skip ignorable results
-	next if $row{'user'} eq 'system user';
-	next if $row{'command'} =~ m/(Sleep|Binlog Dump|Ping|Processlist)/io;
+        # skip ignorable results
+        next if $row{'user'} eq 'system user';
+        next if $row{'command'} =~ m/(Sleep|Binlog Dump|Ping|Processlist|Daemon)/io;
 
-	# extract connection info
-	my $db = $row{'db'} || '';
-	my $user = $row{'user'} || '';
-	my $host = $row{'host'} || '';
-	$host =~ s/:\d+$//o;
+        # extract connection info
+        my $db = $row{'db'} || '';
+        my $user = $row{'user'} || '';
+        my $host = $row{'host'} || '';
+        $host =~ s/:\d+$//o;
 
-	# skip if connection info does or doest match criteria
-	next if $np->opts->db and grep !/^$db$/, @db;
-	next if $np->opts->skip_db and grep /^$db$/, @skipdb;
+        # skip if connection info does or doest match criteria
+        next if $np->opts->db and grep !/^$db$/, @db;
+        next if $np->opts->skip_db and grep /^$db$/, @skipdb;
 
-	next if $np->opts->clientuser and grep !/^$user$/, @clientuser;
-	next if $np->opts->skip_clientuser and grep /^$user$/, @skipclientuser;
+        next if $np->opts->clientuser and grep !/^$user$/, @clientuser;
+        next if $np->opts->skip_clientuser and grep /^$user$/, @skipclientuser;
 
-	next if $np->opts->clienthost and grep !/^$host$/, @clienthost;
-	next if $np->opts->skip_clienthost and grep /^$host$/, @skipclienthost;
+        next if $np->opts->clienthost and grep !/^$host$/, @clienthost;
+        next if $np->opts->skip_clienthost and grep /^$host$/, @skipclienthost;
 
-	# only save the longest running query
-	if ( $row{'time'} > $longquery_time ) {
-		$longquery_time = $row{'time'};
-		$longquery_info = "TIME: $row{'time'}";
-		foreach my $k ( sort keys %row ) {
-			next if $k eq 'time' or $k eq 'info';
-			$longquery_info .= " $k=" . ( $row{$k} || 'NULL' );
-		}
-		$longquery_info .= " INFO=" . ( $row{'info'} || 'NULL' );
-	}
+        # only save the longest running query
+        if ( $row{'time'} > $longquery_time ) {
+                $longquery_time = $row{'time'};
+                $longquery_info = "TIME: $row{'time'}";
+                foreach my $k ( sort keys %row ) {
+                        next if $k eq 'time' or $k eq 'info';
+                        $longquery_info .= " $k=" . ( $row{$k} || 'NULL' );
+                }
+                $longquery_info .= " INFO=" . ( $row{'info'} || 'NULL' );
+        }
 }
 
 # we're done with the db handle
